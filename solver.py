@@ -11,8 +11,8 @@ class PySolver:
         self.inc = None
         self.table = {}
         
-        self.acceptable_error = 10 ** -4
-        self.max_iterations = 10 ** 4 # 1 000 000 iterations = 1 million as default
+        self.acceptable_error = 10 ** -5
+        self.max_iterations = 10 ** 6 # 1 000 000 iterations = 1 million as default
 
     def new():
         self = PySolver()
@@ -89,11 +89,11 @@ class PySolver:
             new_position = position + inc
 
             # verfify that we are still in our bounds, assuming that our original position is OK.
-            if new_position == self.lower_bound or new_position == self.upper_bound:
-                inc *= -0.5
+            if abs(new_position - self.lower_bound) <= self.acceptable_error or abs(new_position - self.upper_bound) <= self.acceptable_error:
+                inc *= -1
                 continue
             if new_position < self.lower_bound or new_position > self.upper_bound:
-                # we may have to go slower, and try again.
+                # we may have to go slower, and try again (we have overshot the bounds)
                 inc *= 0.5
                 continue # none of the following code will execute this run. because it does not matter. 
 
@@ -122,9 +122,54 @@ class PySolver:
     def find_zero(self):
         return self.approach(0)
 
-    def find_max(self):
-        return self.approach(float("inf"))
-
     def find_min(self):
-        return self.approach(-float("inf"))
+        position = self.start
+        val = self.get(position)
+        inc = self.inc
 
+        iterations = 0
+        while iterations < self.max_iterations:
+            iterations += 1
+
+            next_position = position + inc
+            if next_position <= self.lower_bound or next_position >= self.upper_bound:
+                # we have gone too far, out of bounds. Try again, but go slower.
+                inc *= 0.5
+                continue
+
+            next_val = self.get(next_position)
+            
+            if next_val > val:
+                # we may be going the wrong way, or we have overshot the minimum value
+                inc *= -0.5
+            else:
+                position = next_position
+                val = next_val
+        
+        return (position, val)
+    
+    def find_max(self):
+        position = self.start
+        val = self.get(position)
+        inc = self.inc
+
+        iterations = 0
+        while iterations < self.max_iterations:
+            iterations += 1
+
+            next_position = position + inc
+            if next_position <= self.lower_bound or next_position >= self.upper_bound:
+                # we have gone too far, out of bounds. Try again, but go slower.
+                inc *= 0.5
+                continue
+
+            next_val = self.get(next_position)
+            
+            if next_val < val:
+                # we may be going the wrong way, or we have overshot the minimum value
+                inc *= -0.5
+            else:
+                position = next_position
+                val = next_val
+        
+        return (position, val)
