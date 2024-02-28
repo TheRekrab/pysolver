@@ -12,7 +12,7 @@ class PySolver:
         self.table = {}
         
         self.acceptable_error = 10 ** -4
-        self.max_iterations = 10 ** 1 # 1 000 000 iterations = 1 million as default
+        self.max_iterations = 10 ** 4 # 1 000 000 iterations = 1 million as default
 
     def new():
         self = PySolver()
@@ -21,7 +21,7 @@ class PySolver:
     def verify(func):
         def wrapper(*args, **kwargs):
             self = args[0] # self is always first argument
-            inputs = [self.f, self.upper_bound, self.lower_bound, self.start != None, self.inc, self.acceptable_error, self.max_iterations]
+            inputs = [self.f, self.upper_bound != None, self.lower_bound != None, self.start != None, self.inc, self.acceptable_error != None, self.max_iterations]
             if not all(inputs):
                 print(inputs)
                 raise Exception(f"PySolver instance was trying to run {func.__name__} without all inputs configured, exiting...")
@@ -98,21 +98,22 @@ class PySolver:
                 continue # none of the following code will execute this run. because it does not matter. 
 
             new_val = self.get(new_position)
-            new_dist= dist(new_val, goal) # as we get closer, this number is positive. Negative number means we are getting further away than we were.
-            gain = new_dist - old_dist
+            new_dist= dist(new_val, goal) 
             new_diff = new_val - goal
 
             # have we crossed the line?
             if new_diff > 0 and diff < 0 or new_diff < 0 and diff > 0:
                 # this means that we have overshot, so let's dial back our increments
                 inc *= 0.5
-            elif gain < 0:
-                inc *= -1  # we are going the wrong way
+            elif new_dist > d:
+                inc *= -1.0  # we are going the wrong way
             else:
                 # this was a standard move (we got closer to the goal) SO: new_gain is positive, new_diff < diff
                 # commit the move, and store the changes
                 position = new_position
                 val = new_val
+                diff = new_diff
+                d = new_dist
                 diff = new_diff
 
 
