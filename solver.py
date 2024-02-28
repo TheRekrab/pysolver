@@ -11,8 +11,8 @@ class PySolver:
         self.inc = None
         self.table = {}
         
-        self.acceptable_error = 10 ** -4
-        self.max_iterations = 10 ** 1 # 1 000 000 iterations = 1 million as default
+        self.acceptable_error = 10 ** -5
+        self.max_iterations = 10 ** 6 # 1 000 000 iterations = 1 million as default
 
     def new():
         self = PySolver()
@@ -21,7 +21,7 @@ class PySolver:
     def verify(func):
         def wrapper(*args, **kwargs):
             self = args[0] # self is always first argument
-            inputs = [self.f, self.upper_bound, self.lower_bound, self.start != None, self.inc, self.acceptable_error, self.max_iterations]
+            inputs = [self.f, self.upper_bound != None, self.lower_bound != None, self.start != None, self.inc, self.acceptable_error != None, self.max_iterations]
             if not all(inputs):
                 print(inputs)
                 raise Exception(f"PySolver instance was trying to run {func.__name__} without all inputs configured, exiting...")
@@ -89,30 +89,31 @@ class PySolver:
             new_position = position + inc
 
             # verfify that we are still in our bounds, assuming that our original position is OK.
-            if new_position == self.lower_bound or new_position == self.upper_bound:
-                inc *= -0.5
+            if abs(new_position - self.lower_bound) <= self.acceptable_error or abs(new_position - self.upper_bound) <= self.acceptable_error:
+                inc *= -1
                 continue
             if new_position < self.lower_bound or new_position > self.upper_bound:
-                # we may have to go slower, and try again.
+                # we may have to go slower, and try again (we have overshot the bounds)
                 inc *= 0.5
                 continue # none of the following code will execute this run. because it does not matter. 
 
             new_val = self.get(new_position)
-            new_dist= dist(new_val, goal) # as we get closer, this number is positive. Negative number means we are getting further away than we were.
-            gain = new_dist - old_dist
+            new_dist= dist(new_val, goal) 
             new_diff = new_val - goal
 
             # have we crossed the line?
             if new_diff > 0 and diff < 0 or new_diff < 0 and diff > 0:
                 # this means that we have overshot, so let's dial back our increments
                 inc *= 0.5
-            elif gain < 0:
-                inc *= -1  # we are going the wrong way
+            elif new_dist > d:
+                inc *= -1.0  # we are going the wrong way
             else:
                 # this was a standard move (we got closer to the goal) SO: new_gain is positive, new_diff < diff
                 # commit the move, and store the changes
                 position = new_position
                 val = new_val
+                diff = new_diff
+                d = new_dist
                 diff = new_diff
 
 
@@ -121,9 +122,54 @@ class PySolver:
     def find_zero(self):
         return self.approach(0)
 
-    def find_max(self):
-        return self.approach(float("inf"))
-
     def find_min(self):
-        return self.approach(-float("inf"))
+        position = self.start
+        val = self.get(position)
+        inc = self.inc
 
+        iterations = 0
+        while iterations < self.max_iterations:
+            iterations += 1
+
+            next_position = position + inc
+            if next_position <= self.lower_bound or next_position >= self.upper_bound:
+                # we have gone too far, out of bounds. Try again, but go slower.
+                inc *= 0.5
+                continue
+
+            next_val = self.get(next_position)
+            
+            if next_val > val:
+                # we may be going the wrong way, or we have overshot the minimum value
+                inc *= -0.5
+            else:
+                position = next_position
+                val = next_val
+        
+        return (position, val)
+    
+    def find_max(self):
+        position = self.start
+        val = self.get(position)
+        inc = self.inc
+
+        iterations = 0
+        while iterations < self.max_iterations:
+            iterations += 1
+
+            next_position = position + inc
+            if next_position <= self.lower_bound or next_position >= self.upper_bound:
+                # we have gone too far, out of bounds. Try again, but go slower.
+                inc *= 0.5
+                continue
+
+            next_val = self.get(next_position)
+            
+            if next_val < val:
+                # we may be going the wrong way, or we have overshot the minimum value
+                inc *= -0.5
+            else:
+                position = next_position
+                val = next_val
+        
+        return (position, val)
